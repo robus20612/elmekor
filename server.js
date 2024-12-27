@@ -1,31 +1,39 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
+const { createServer } = require('@vercel/node');
 
 const app = express();
-app.use(express.json());
-app.use(cors());
 
-// Connect to MongoDB
-mongoose.connect('mongodb+srv://robus206:<db_password>@cluster0.1z7za.mongodb.net/?retryWrites=true&w=majority', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-});
+app.use(express.json());
+
+// Environment variables
+const MONGO_URI = process.env.MONGO_URI;
+const PORT = process.env.PORT || 5000;
+
+// MongoDB connection
+mongoose.connect(MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
+// Routes
+app.get('/', (req, res) => res.send('Server is running!'));
 
 const keySchema = new mongoose.Schema({ key: String, expireAt: Date });
 const Key = mongoose.model('Key', keySchema);
 
 app.post('/add-key', async (req, res) => {
-    const { key, expireAt } = req.body;
-    const newKey = new Key({ key, expireAt });
-    await newKey.save();
-    res.send('Key added successfully!');
+  const { key, expireAt } = req.body;
+  const newKey = new Key({ key, expireAt });
+  await newKey.save();
+  res.send('Key added successfully!');
 });
 
 app.get('/get-keys', async (req, res) => {
-    const keys = await Key.find();
-    res.json(keys);
+  const keys = await Key.find();
+  res.json(keys);
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Export the app as a serverless function
+module.exports = createServer(app);
