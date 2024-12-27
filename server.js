@@ -6,11 +6,8 @@ const app = express();
 
 app.use(express.json());
 
-// Environment variables
+// MongoDB connection setup
 const MONGO_URI = process.env.MONGO_URI;
-const PORT = process.env.PORT || 5000;
-
-// MongoDB connection
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -20,34 +17,31 @@ mongoose.connect(MONGO_URI, {
 // Routes
 app.get('/', (req, res) => res.send('Server is running!'));
 
-// Key schema (with key and expireAt)
-const keySchema = new mongoose.Schema({ key: String, expireAt: Date });
+const keySchema = new mongoose.Schema({
+  key: String,
+  expireAt: { type: Date, required: true },
+  timestamp: { type: Date, default: Date.now } // Automatically set the current timestamp
+});
 const Key = mongoose.model('Key', keySchema);
 
-// POST route to add a key with dynamic expireAt
 app.post('/add-key', async (req, res) => {
-  const { key, expireInHours = 1 } = req.body;  // Default to 1 hour, or get from the request body
+  const { key, expireAt } = req.body;
 
-  // Get the current date and time
-  const currentTime = new Date();
+  // Ensure expireAt is a valid Date object (if it's a string, convert it to Date)
+  const expireAtDate = new Date(expireAt);
+  if (isNaN(expireAtDate)) {
+    return res.status(400).send('Invalid expireAt date format');
+  }
 
-  // Add the specified number of hours to the current time
-  const expireAt = new Date(currentTime.setHours(currentTime.getHours() + expireInHours));
-
-  // Create the new key object with expireAt
-  const newKey = new Key({ key, expireAt });
-
-  // Save the new key to MongoDB
+  const newKey = new Key({ key, expireAt: expireAtDate });
   await newKey.save();
-  
-  res.send(`Key added successfully with expiration set to: ${expireAt}`);
+  res.send('Key added successfully!');
 });
 
-// GET route to fetch all keys
 app.get('/get-keys', async (req, res) => {
   const keys = await Key.find();
   res.json(keys);
 });
 
-// Export the app as a serverless function (for Vercel)
+// Export the app as a serverless function
 module.exports = createServer(app);
