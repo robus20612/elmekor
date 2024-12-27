@@ -17,23 +17,21 @@ mongoose.connect(MONGO_URI, {
 // Routes
 app.get('/', (req, res) => res.send('Server is running!'));
 
+// Schema for keys (adding timestamp)
 const keySchema = new mongoose.Schema({
-  key: String,
-  expireAt: { type: Date, required: true },
+  key: { type: String, required: true },
   timestamp: { type: Date, default: Date.now } // Automatically set the current timestamp
 });
 const Key = mongoose.model('Key', keySchema);
 
 app.post('/add-key', async (req, res) => {
-  const { key, expireAt } = req.body;
+  const { key } = req.body;
 
-  // Ensure expireAt is a valid Date object (if it's a string, convert it to Date)
-  const expireAtDate = new Date(expireAt);
-  if (isNaN(expireAtDate)) {
-    return res.status(400).send('Invalid expireAt date format');
+  if (!key) {
+    return res.status(400).send('Key is required');
   }
 
-  const newKey = new Key({ key, expireAt: expireAtDate });
+  const newKey = new Key({ key });
   await newKey.save();
   res.send('Key added successfully!');
 });
